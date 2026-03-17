@@ -1,0 +1,4 @@
+[submodule "gantt"]
+	path = gantt
+	url = git@github.com:kevinzjpeng/gantt.git
+	branch = main
