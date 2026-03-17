@@ -32,6 +32,7 @@ let selectedTaskId = null;     // id of the last clicked/active task (for keyboa
 let titleFilter = '';          // case-insensitive title filter string
 let repoLabels = [];           // all labels defined in the repo [{name, color}, ...]
 let pendingLabelChanges = new Map(); // issueId(string) → label-names array (pending, not yet saved)
+let rowOrderOverride   = [];          // when non-empty, manual row order (array of task IDs)
 
 // ─── DOM Refs ─────────────────────────────────────────────────────────────────
 
@@ -239,6 +240,20 @@ function getLiveTasks() {
  * Both rules use a topological placement with cycle guards.
  */
 function sortByHierarchy(tasks) {
+    // When the user has manually reordered rows, respect that order.
+    if (rowOrderOverride.length > 0) {
+        const byId = new Map(tasks.map((t) => [t.id, t]));
+        const result = [];
+        for (const id of rowOrderOverride) {
+            if (byId.has(id)) result.push(byId.get(id));
+        }
+        // Append any tasks not yet in the override (e.g. newly loaded)
+        for (const t of tasks) {
+            if (!result.includes(t)) result.push(t);
+        }
+        return result;
+    }
+
     const byId = new Map(tasks.map((t) => [t.id, t]));
     const result = [];
     const placed = new Set();
@@ -434,14 +449,121 @@ function renderGantt(tasks) {
     });
 
     // Block wheel scroll on the actual scroll container frappe-gantt creates.
-    // Must be attached here (not at page load) because the element is created
-    // fresh each time renderGantt() runs.
     const ganttContainer = ganttWrapper.querySelector('.gantt-container');
     if (ganttContainer) {
         ganttContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
         }, { passive: false });
     }
+
+    // Monkey-patch refresh so drag handles are rebuilt on every refresh.
+    const _origRefresh = ganttInstance.refresh.bind(ganttInstance);
+    ganttInstance.refresh = (tasks) => { _origRefresh(tasks); attachRowDragHandles(); };
+
+    // Build initial handles after first render.
+    attachRowDragHandles();
+}
+
+// ─── Row drag-to-reorder ──────────────────────────────────────────────────────
+
+function attachRowDragHandles() {
+    const ganttContainer = ganttWrapper.querySelector('.gantt-container');
+    if (!ganttContainer || !ganttInstance) return;
+
+    const barHeight   = ganttInstance.options.bar_height;  // 30
+    const pad         = ganttInstance.options.padding;     // 18
+    const rowHeight   = barHeight + pad;                   // 48
+    const headerH     = ganttInstance.config.header_height; // 91
+
+    // Remove previous overlay (and its scroll listener).
+    const old = ganttContainer.querySelector('.row-drag-overlay');
+    if (old) {
+        if (old._scrollOff) old._scrollOff();
+        old.remove();
+    }
+
+    const tasks = [...ganttInstance.tasks].sort((a, b) => a._index - b._index);
+    if (tasks.length === 0) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'row-drag-overlay';
+    overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: ${ganttContainer.scrollLeft}px;
+        z-index: 500;
+        pointer-events: none;
+        width: 22px;
+    `;
+    ganttContainer.appendChild(overlay);
+
+    const onScroll = () => { overlay.style.left = ganttContainer.scrollLeft + 'px'; };
+    ganttContainer.addEventListener('scroll', onScroll, { passive: true });
+    overlay._scrollOff = () => ganttContainer.removeEventListener('scroll', onScroll);
+
+    for (const task of tasks) {
+        const handleTop = headerH + (pad / 2) + task._index * rowHeight;
+        const handle = document.createElement('div');
+        handle.className = 'row-drag-handle';
+        handle.dataset.id = task.id;
+        handle.title = `Drag to reorder #${task.id}`;
+        handle.style.top = handleTop + 'px';
+        handle.style.height = rowHeight + 'px';
+        handle.textContent = '⠿';
+        overlay.appendChild(handle);
+
+        handle.addEventListener('mousedown', (e) => {
+            startRowDrag(e, task.id, tasks, ganttContainer, rowHeight, headerH);
+        });
+    }
+}
+
+function startRowDrag(e, taskId, tasks, container, rowHeight, headerH) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const currentOrder = tasks.map((t) => t.id);
+    const fromIndex    = currentOrder.indexOf(taskId);
+    const totalRows    = tasks.length;
+
+    // Drop indicator line
+    const indicator = document.createElement('div');
+    indicator.className = 'row-drop-indicator';
+    indicator.style.top = (headerH + fromIndex * rowHeight) + 'px';
+    container.appendChild(indicator);
+
+    const draggedHandle = container.querySelector(`.row-drag-handle[data-id="${taskId}"]`);
+    if (draggedHandle) draggedHandle.classList.add('dragging');
+
+    let insertIdx = fromIndex;
+
+    function onMove(ev) {
+        const rect   = container.getBoundingClientRect();
+        const svgY   = ev.clientY - rect.top + container.scrollTop - headerH;
+        const rowIdx = Math.max(0, Math.min(totalRows - 1, Math.floor(svgY / rowHeight)));
+        const frac   = (svgY % rowHeight) / rowHeight;
+        insertIdx    = rowIdx + (frac >= 0.5 ? 1 : 0);
+        indicator.style.top = (headerH + Math.min(insertIdx, totalRows) * rowHeight - 1) + 'px';
+    }
+
+    function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        indicator.remove();
+        if (draggedHandle) draggedHandle.classList.remove('dragging');
+
+        const newOrder = currentOrder.filter((id) => id !== taskId);
+        const adj = insertIdx > fromIndex ? insertIdx - 1 : insertIdx;
+        newOrder.splice(adj, 0, taskId);
+
+        if (newOrder.join(',') !== currentOrder.join(',')) {
+            rowOrderOverride = newOrder;
+            ganttInstance.refresh(getVisibleTasks());
+        }
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -1048,6 +1170,7 @@ async function loadIssues() {
         pendingChanges.clear();
         pendingLabelChanges.clear();
         pendingParentChanges.clear();
+        rowOrderOverride = [];
         updateSaveBtn();
         buildLabelFilter(allIssues);
 

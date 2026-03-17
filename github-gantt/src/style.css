@@ -857,6 +857,44 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; }
     font-size: 0.9em;
 }
 
+/* Row drag-to-reorder */
+.row-drag-overlay {
+    pointer-events: none;
+}
+.row-drag-handle {
+    position: absolute;
+    left: 0;
+    width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: var(--color-text-muted);
+    opacity: 0;
+    cursor: grab;
+    pointer-events: auto;
+    transition: opacity 0.15s;
+    user-select: none;
+}
+.row-drag-handle:hover,
+.row-drag-handle.dragging {
+    opacity: 0.9;
+    color: var(--color-info);
+}
+.gantt-container:hover .row-drag-handle {
+    opacity: 0.35;
+}
+.row-drop-indicator {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--color-info, #58a6ff);
+    z-index: 600;
+    pointer-events: none;
+    border-radius: 1px;
+}
+
 /* Parent issue */
 .parent-item {
     display: flex;
