@@ -114,7 +114,8 @@ settingsForm.addEventListener('submit', async (e) => {
     const repoStr = sRepoInput.value.trim();
 
     if (!token) { settingsError.textContent = 'Token is required.'; return; }
-    if (!parseRepo(repoStr)) { settingsError.textContent = 'Repo must be in "owner/repo" format.'; return; }
+    const parsed = parseRepo(repoStr);
+    if (!parsed || !parsed.repo) { settingsError.textContent = 'Invalid project URL. Use: https://github.com/owner/repo or owner/repo'; return; }
 
     settingsError.textContent = '';
     const btn = settingsForm.querySelector('button[type=submit]');
@@ -144,7 +145,8 @@ configForm.addEventListener('submit', async (e) => {
     const repoStr = ghRepoInput.value.trim();
 
     if (!token) { configError.textContent = 'Token is required.'; return; }
-    if (!parseRepo(repoStr)) { configError.textContent = 'Repo must be in "owner/repo" format.'; return; }
+    const parsed = parseRepo(repoStr);
+    if (!parsed || !parsed.repo) { configError.textContent = 'Invalid project URL. Use: https://github.com/owner/repo or owner/repo'; return; }
 
     configError.textContent = '';
     const btn = configForm.querySelector('button[type=submit]');

@@ -1,15 +1,52 @@
 #!/usr/bin/env node
 /**
  * Apply better labels to issues based on content analysis
+ * Usage: node analyze-labels.js <owner/repo> [--owner OWNER] [--repo REPO]
  */
 
 const BASE = 'https://api.github.com';
-const owner = 'TechxArtisanStudio';
-const repo = 'R-D';
 const token = process.env.GITHUB_TOKEN;
 
 if (!token) {
     console.error('❌ Error: GITHUB_TOKEN environment variable not set');
+    process.exit(1);
+}
+
+// Parse command-line arguments
+let owner, repo;
+const args = process.argv.slice(2);
+
+if (args.length === 0) {
+    console.error('❌ Error: owner/repo required');
+    console.error('Usage: node analyze-labels.js owner/repo');
+    console.error('   or: node analyze-labels.js --owner OWNER --repo REPO');
+    process.exit(1);
+}
+
+// Check for --owner --repo flags
+let i = 0;
+while (i < args.length) {
+    if (args[i] === '--owner' && i + 1 < args.length) {
+        owner = args[i + 1];
+        i += 2;
+    } else if (args[i] === '--repo' && i + 1 < args.length) {
+        repo = args[i + 1];
+        i += 2;
+    } else if (!args[i].startsWith('--')) {
+        // Parse owner/repo format
+        const [o, r] = args[i].split('/');
+        if (!owner) owner = o;
+        if (!repo) repo = r;
+        i++;
+    } else {
+        i++;
+    }
+}
+
+if (!owner || !repo) {
+    console.error('❌ Error: invalid owner/repo format');
+    console.error('Usage: node analyze-labels.js owner/repo');
+    console.error('   or: node analyze-labels.js --owner OWNER --repo REPO');
     process.exit(1);
 }
 
