@@ -225,10 +225,17 @@ export function getVisibleTasks() {
     const needle = state.titleFilter.toLowerCase();
 
     const filtered = live.filter((task) => {
+        // Filter by status if any statuses are selected
+        if (state.activeStatuses.size > 0) {
+            const issueStatus = task._issue?.state;
+            if (!issueStatus || !state.activeStatuses.has(issueStatus)) return false;
+        }
+        // Filter by labels if any labels are selected
         if (state.activeLabels.size > 0) {
             const labelNames = new Set((task._issue?.labels || []).map((l) => l.name));
             if (![...state.activeLabels].every((name) => labelNames.has(name))) return false;
         }
+        // Filter by title search
         if (needle) {
             const haystack = (task._issue?.title || task.name || '').toLowerCase();
             if (!haystack.includes(needle)) return false;

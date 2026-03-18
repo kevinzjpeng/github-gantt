@@ -39,6 +39,9 @@ export const state = {
     /** Label names currently active in the filter bar. */
     activeLabels: new Set(),
 
+    /** Issue statuses currently active in the filter bar (e.g. 'open', 'closed'). */
+    activeStatuses: new Set(),
+
     /**
      * childId → parentId mapping loaded from GitHub sub-issues API.
      * @type {Map<string, string>}
