@@ -544,9 +544,6 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; }
     flex: 1;
     overflow: hidden;
     min-width: 0;
-    background: #f0f0f0;
-    padding: 0.4rem;
-    border-radius: 6px;
 }
 
 .assignee-filter-pill {
@@ -557,11 +554,12 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; }
     border-radius: 12px;
     font-size: 0.72rem;
     font-weight: 600;
+    color: #999;
     background: var(--color-surface-2);
     border: 2px solid transparent;
     cursor: pointer;
     opacity: 0.5;
-    transition: opacity 0.15s, outline 0.15s;
+    transition: opacity 0.15s, outline 0.15s, color 0.15s;
     white-space: nowrap;
 }
 
