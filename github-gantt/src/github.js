@@ -56,14 +56,21 @@ async function ghGraphQL(query, token, variables = {}) {
 }
 
 /**
- * Get the global node ID for a GitHub project using org name and project number.
+ * Get the global node ID and linked repositories for a GitHub project.
  */
-export async function getProjectNodeId(orgName, projectNumber, token) {
+export async function getProjectInfo(orgName, projectNumber, token) {
     const query = `
         query GetProject($org: String!, $projectNum: Int!) {
             organization(login: $org) {
                 projectV2(number: $projectNum) {
                     id
+                    title
+                    repositories(first: 10) {
+                        nodes {
+                            name
+                            nameWithOwner
+                        }
+                    }
                 }
             }
         }
@@ -71,11 +78,18 @@ export async function getProjectNodeId(orgName, projectNumber, token) {
 
     const data = await ghGraphQL(query, token, { org: orgName, projectNum: parseInt(projectNumber, 10) });
     
-    if (!data?.organization?.projectV2?.id) {
+    if (!data?.organization?.projectV2) {
         throw new Error('Project not found. Verify org name and project number.');
     }
     
-    return data.organization.projectV2.id;
+    const project = data.organization.projectV2;
+    const repos = project.repositories?.nodes || [];
+    
+    return {
+        nodeId: project.id,
+        title: project.title,
+        repos: repos,
+    };
 }
 
 /**
@@ -128,14 +142,10 @@ export async function fetchAllIssues(owner, repo, token) {
 /**
  * Fetch all issue numbers that belong to a GitHub Project v2.
  * Returns a Set of issue numbers as strings.
- * @param {string} projectNumber - The numeric project number from the URL (e.g., "14")
- * @param {string} orgName - The organization name
+ * @param {string} projectNodeId - The global node ID of the project
  * @param {string} token - GitHub API token
  */
-export async function fetchProjectIssueNumbers(projectNumber, orgName, token) {
-    // First, get the global node ID for the project
-    const projectNodeId = await getProjectNodeId(orgName, projectNumber, token);
-    
+export async function fetchProjectIssueNumbers(projectNodeId, token) {
     const issueNumbers = new Set();
     let hasNextPage = true;
     let endCursor = null;
@@ -154,6 +164,9 @@ export async function fetchProjectIssueNumbers(projectNumber, orgName, token) {
                                 content {
                                     ... on Issue {
                                         number
+                                        repository {
+                                            nameWithOwner
+                                        }
                                     }
                                 }
                             }
@@ -306,26 +319,9 @@ export function addSubIssue(owner, repo, token, parentNumber, childIssueId) {
  */
 export async function validateRepo(owner, repo, token, projectId) {
     if (projectId) {
-        // Validate project access via GraphQL using org name + project number
-        const query = `
-            query GetProject($org: String!, $projectNum: Int!) {
-                organization(login: $org) {
-                    projectV2(number: $projectNum) {
-                        id
-                        title
-                        url
-                    }
-                }
-            }
-        `;
-        const data = await ghGraphQL(query, token, { org: owner, projectNum: parseInt(projectId, 10) });
-        
-        if (!data?.organization?.projectV2) {
-            throw new Error('Project not found. Verify org name and project number.');
-        }
-        
-        const projectName = data.organization.projectV2.title || `project-${projectId}`;
-        return { full_name: `${owner}/${projectName}`, projectId };
+        // Validate project access via getProjectInfo
+        const projectInfo = await getProjectInfo(owner, projectId, token);
+        return { full_name: `${owner}/${projectInfo.title}`, projectId };
     } else {
         const owner_enc = encodeURIComponent(owner);
         const repo_enc = encodeURIComponent(repo);

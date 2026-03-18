@@ -9,7 +9,7 @@
 import Gantt from 'frappe-gantt';
 import '../../gantt/src/styles/gantt.css';
 import '../../gantt/src/styles/themes.css';
-import { fetchAllIssues, fetchParentMap, fetchRepoLabels, validateRepo, fetchProjectIssueNumbers } from './github.js';
+import { fetchAllIssues, fetchParentMap, fetchRepoLabels, validateRepo, fetchProjectIssueNumbers, getProjectInfo } from './github.js';
 import { issueToTask } from './mapper.js';
 import './style.css';
 
@@ -269,8 +269,31 @@ async function loadIssues() {
             owner = parsed.owner;
             setStatus('Fetching project data…');
             
+            // Get project info including linked repositories
+            const projectInfo = await getProjectInfo(owner, projectId, token);
+            const projectNodeId = projectInfo.nodeId;
+            const linkedRepos = projectInfo.repos;
+            
+            // Determine which repo to use
+            if (parsed.repo) {
+                // User explicitly specified a repo
+                repo = parsed.repo;
+            } else if (linkedRepos.length > 0) {
+                // Use the first linked repository
+                const repoName = linkedRepos[0].nameWithOwner;
+                const [repoOwner, repoName_] = repoName.split('/');
+                owner = repoOwner;
+                repo = repoName_;
+                setStatus(`Using project repository: ${repoName}`);
+            } else {
+                // Project has no linked repos
+                document.getElementById('gantt-wrapper').innerHTML = '<div class="empty">Project has no linked repositories. Please link a repository to this project.</div>';
+                setStatus('No repositories linked to project');
+                return;
+            }
+            
             // Get all issue numbers in the project
-            const projectIssueNumbers = await fetchProjectIssueNumbers(projectId, owner, token);
+            const projectIssueNumbers = await fetchProjectIssueNumbers(projectNodeId, token);
             state.projectIssueNumbers = projectIssueNumbers;
             state.projectId = projectId;
             
@@ -280,20 +303,11 @@ async function loadIssues() {
                 return;
             }
             
-            // Fetch issues from all repos in the org or specified repo
-            if (parsed.repo) {
-                // Specific repo provided with project
-                allIssues = await fetchAllIssues(owner, parsed.repo, token);
-            } else {
-                // Need to get issues from multiple repos — for now, require user to specify repo
-                document.getElementById('gantt-wrapper').innerHTML = '<div class="empty">Please specify both project URL and repository (owner/repo) for multi-repo projects.</div>';
-                setStatus('Multi-repo projects require explicit owner/repo');
-                return;
-            }
+            // Fetch issues from the detected/specified repo
+            allIssues = await fetchAllIssues(owner, repo, token);
             
             // Filter to only issues in the project
             allIssues = allIssues.filter((issue) => projectIssueNumbers.has(String(issue.number)));
-            repo = parsed.repo;
         } else {
             // Load from repo
             owner = parsed.owner;
