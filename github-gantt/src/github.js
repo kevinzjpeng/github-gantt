@@ -328,3 +328,103 @@ export async function validateRepo(owner, repo, token, projectId) {
         return ghFetch(`/repos/${owner_enc}/${repo_enc}`, token);
     }
 }
+
+/**
+ * Fetch project custom field dates (Start Date and End Date) for all issues in a project.
+ * Returns a Map<issueNumber, {start?: string, end?: string}>
+ * @param {string} projectNodeId - The global node ID of the project
+ * @param {string} token - GitHub API token
+ */
+export async function fetchProjectDates(projectNodeId, token) {
+    const issueDates = new Map();
+    let hasNextPage = true;
+    let endCursor = null;
+
+    while (hasNextPage) {
+        const query = `
+            query GetProjectDates($projectId: ID!, $after: String) {
+                node(id: $projectId) {
+                    ... on ProjectV2 {
+                        fields(first: 20) {
+                            nodes {
+                                ... on ProjectV2Field {
+                                    id
+                                    name
+                                }
+                                ... on ProjectV2IterationField {
+                                    id
+                                    name
+                                }
+                                ... on ProjectV2SingleSelectField {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        items(first: 100, after: $after) {
+                            pageInfo {
+                                hasNextPage
+                                endCursor
+                            }
+                            nodes {
+                                id
+                                content {
+                                    ... on Issue {
+                                        number
+                                    }
+                                }
+                                fieldValues(first: 20) {
+                                    nodes {
+                                        ... on ProjectV2ItemFieldDateValue {
+                                            field {
+                                                ... on ProjectV2Field {
+                                                    name
+                                                }
+                                            }
+                                            date
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+
+        const data = await ghGraphQL(query, token, { projectId: projectNodeId, after: endCursor });
+        
+        if (!data?.node?.items) {
+            break;
+        }
+
+        for (const item of data.node.items.nodes || []) {
+            if (item.content?.number) {
+                const issueNum = String(item.content.number);
+                const dates = {};
+
+                for (const fieldValue of item.fieldValues?.nodes || []) {
+                    const fieldName = fieldValue.field?.name || '';
+                    const dateVal = fieldValue.date;
+                    
+                    if (dateVal) {
+                        if (fieldName.toLowerCase().includes('start')) {
+                            dates.start = dateVal;
+                        } else if (fieldName.toLowerCase().includes('end')) {
+                            dates.end = dateVal;
+                        }
+                    }
+                }
+
+                if (Object.keys(dates).length > 0) {
+                    issueDates.set(issueNum, dates);
+                }
+            }
+        }
+
+        hasNextPage = data.node.items.pageInfo.hasNextPage;
+        endCursor = data.node.items.pageInfo.endCursor;
+    }
+
+    return issueDates;
+}

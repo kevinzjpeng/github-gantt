@@ -9,7 +9,7 @@
 import Gantt from 'frappe-gantt';
 import '../../gantt/src/styles/gantt.css';
 import '../../gantt/src/styles/themes.css';
-import { fetchAllIssues, fetchParentMap, fetchRepoLabels, validateRepo, fetchProjectIssueNumbers, getProjectInfo } from './github.js';
+import { fetchAllIssues, fetchParentMap, fetchRepoLabels, validateRepo, fetchProjectIssueNumbers, getProjectInfo, fetchProjectDates } from './github.js';
 import { issueToTask } from './mapper.js';
 import './style.css';
 
@@ -319,7 +319,16 @@ async function loadIssues() {
         state.allIssues  = allIssues;
         state.parentMap  = await fetchParentMap(owner, repo, token, state.allIssues);
         state.repoLabels = await fetchRepoLabels(owner, repo, token);
-        state.allTasks   = state.allIssues.map((issue) => issueToTask(issue, state.parentMap));
+        
+        // Fetch project dates if loading from a project
+        let projectDateMap = new Map();
+        if (projectId) {
+            const projectInfo = await getProjectInfo(owner, projectId, token);
+            projectDateMap = await fetchProjectDates(projectInfo.nodeId, token);
+            setStatus(`Loaded dates from project (${projectDateMap.size} issues with dates)`);
+        }
+        
+        state.allTasks   = state.allIssues.map((issue) => issueToTask(issue, state.parentMap, projectDateMap));
 
         state.pendingChanges.clear();
         state.pendingLabelChanges.clear();

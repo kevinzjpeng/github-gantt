@@ -54,16 +54,19 @@ function toDateStr(date) {
  * Convert a GitHub issue object to a Frappe Gantt task object.
  * @param {object} issue     Raw GitHub issue
  * @param {Map}    parentMap childNumber(string) → parentNumber(string) — from fetchParentMap()
+ * @param {Map}    projectDates issueNumber(string) → {start?, end?} — from fetchProjectDates()
  */
-export function issueToTask(issue, parentMap = new Map()) {
+export function issueToTask(issue, parentMap = new Map(), projectDates = new Map()) {
     const meta = parseMeta(issue.body);
+    const projectDate = projectDates.get(String(issue.number));
 
     const created = new Date(issue.created_at);
     const defaultEnd = new Date(created);
     defaultEnd.setDate(defaultEnd.getDate() + 7);
 
-    const start = meta?.start || toDateStr(created);
-    const end = meta?.end || toDateStr(defaultEnd);
+    // Priority: projectDates > GANTT_META > defaults
+    const start = projectDate?.start || meta?.start || toDateStr(created);
+    const end = projectDate?.end || meta?.end || toDateStr(defaultEnd);
     const progress = issue.state === 'closed' ? 100 : (meta?.progress ?? 0);
 
     // Explicitly added deps (stored in GANTT_META, editable, persisted to GitHub)
