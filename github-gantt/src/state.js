@@ -39,6 +39,9 @@ export const state = {
     /** Label names currently active in the filter bar. */
     activeLabels: new Set(),
 
+    /** Assignee logins currently active in the filter bar. */
+    activeAssignees: new Set(),
+
     /** Filter to show only open issues. */
     openOnly: true,
 

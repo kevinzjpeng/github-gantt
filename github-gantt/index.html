@@ -178,16 +178,20 @@
                 <div id="label-filter-pills" class="label-filter-pills"></div>
                 <button id="label-filter-clear" class="filter-clear-btn hidden">✕ Clear</button>
                 <div class="filter-title-wrap">
+                    <label class="open-only-checkbox">
+                        <input id="open-only-filter" type="checkbox" />
+                        <span>Open only</span>
+                    </label>
                     <input id="title-filter" type="search" class="title-filter-input"
                            placeholder="Filter by title…" autocomplete="off" />
                 </div>
             </div>
 
-            <!-- Status filter bar -->
-            <div id="status-filter-bar" class="status-filter-bar hidden">
-                <span class="filter-label-text">Status:</span>
-                <div id="status-filter-pills" class="status-filter-pills"></div>
-                <button id="status-filter-clear" class="filter-clear-btn hidden">✕ Clear</button>
+            <!-- Assignee filter bar -->
+            <div id="assignee-filter-bar" class="assignee-filter-bar hidden">
+                <span class="filter-label-text">Assignees:</span>
+                <div id="assignee-filter-pills" class="assignee-filter-pills"></div>
+                <button id="assignee-filter-clear" class="filter-clear-btn hidden">✕ Clear</button>
             </div>
 
             <!-- Gantt + Sidebar layout -->

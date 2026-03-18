@@ -12,9 +12,10 @@ import { getVisibleTasks } from './tasks.js';
 const labelFilterBar    = document.getElementById('label-filter-bar');
 const labelFilterPills  = document.getElementById('label-filter-pills');
 const labelFilterClear  = document.getElementById('label-filter-clear');
-const statusFilterBar   = document.getElementById('status-filter-bar');
-const statusFilterPills = document.getElementById('status-filter-pills');
-const statusFilterClear = document.getElementById('status-filter-clear');
+const assigneeFilterBar   = document.getElementById('assignee-filter-bar');
+const assigneeFilterPills = document.getElementById('assignee-filter-pills');
+const assigneeFilterClear = document.getElementById('assignee-filter-clear');
+const openOnlyFilter    = document.getElementById('open-only-filter');
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -88,70 +89,73 @@ export function updateFilterClearBtn() {
 }
 
 /**
- * Build status filter pills from a fresh set of issues.
- * Shows open and closed status options.
+ * Build assignee filter pills from a fresh set of issues.
  * @param {object[]} issues
  */
-export function buildStatusFilter(issues) {
-    const statuses = new Set();
+export function buildAssigneeFilter(issues) {
+    const assigneeMap = new Map(); // login → { login, avatarUrl }
     for (const issue of issues) {
-        statuses.add(issue.state); // 'open' or 'closed'
+        for (const assignee of (issue.assignees || [])) {
+            if (!assigneeMap.has(assignee.login)) {
+                assigneeMap.set(assignee.login, {
+                    login: assignee.login,
+                    avatarUrl: assignee.avatar_url,
+                });
+            }
+        }
     }
 
-    if (statuses.size === 0) {
-        statusFilterBar.classList.add('hidden');
+    if (assigneeMap.size === 0) {
+        assigneeFilterBar.classList.add('hidden');
         return;
     }
 
-    const sorted = Array.from(statuses).sort();
-    const statusEmoji = { open: '●', closed: '✓' };
+    const sorted = Array.from(assigneeMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
-    statusFilterPills.innerHTML = sorted
-        .map((status) => {
-            const active = state.activeStatuses.has(status) ? ' active' : '';
-            const emoji = statusEmoji[status] || '◌';
-            return `<button class="status-filter-pill${active}" data-status="${escAttr(status)}">
-                    ${emoji} ${escHtml(status.charAt(0).toUpperCase() + status.slice(1))}<span class="pill-close">✕</span>
-                </button>`;
+    assigneeFilterPills.innerHTML = sorted
+        .map(([login, { avatarUrl }]) => {
+            const active = state.activeAssignees.has(login) ? ' active' : '';
+            return `<button class="assignee-filter-pill${active}" data-assignee="${escAttr(login)}"
+                        title="${escAttr(login)}"
+                    ><img src="${escAttr(avatarUrl)}" alt="${escAttr(login)}" />
+                     <span>${escHtml(login)}<span class="pill-close">✕</span></span></button>`;
         })
         .join('');
 
-    statusFilterBar.classList.remove('hidden');
-    updateStatusFilterClearBtn();
+    assigneeFilterBar.classList.remove('hidden');
+    updateAssigneeFilterClearBtn();
 
-    statusFilterPills.querySelectorAll('.status-filter-pill').forEach((pill) => {
-        // Close button click removes the status
+    assigneeFilterPills.querySelectorAll('.assignee-filter-pill').forEach((pill) => {
+        // Close button click removes the assignee
         pill.querySelector('.pill-close')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            const status = pill.dataset.status;
-            state.activeStatuses.delete(status);
+            const login = pill.dataset.assignee;
+            state.activeAssignees.delete(login);
             pill.classList.remove('active');
-            updateStatusFilterClearBtn();
+            updateAssigneeFilterClearBtn();
             applyLabelFilter();
         });
         
         // Pill click toggles active state
         pill.addEventListener('click', () => {
-            const status = pill.dataset.status;
-            if (state.activeStatuses.has(status)) {
-                state.activeStatuses.delete(status);
+            const login = pill.dataset.assignee;
+            if (state.activeAssignees.has(login)) {
+                state.activeAssignees.delete(login);
                 pill.classList.remove('active');
             } else {
-                state.activeStatuses.add(status);
+                state.activeAssignees.add(login);
                 pill.classList.add('active');
             }
-            updateStatusFilterClearBtn();
+            updateAssigneeFilterClearBtn();
             applyLabelFilter();
         });
     });
 }
 
-/** Show or hide the "Clear filters" button for status filter. */
-export function updateStatusFilterClearBtn() {
-    statusFilterClear?.classList.toggle('hidden', state.activeStatuses.size === 0);
+/** Show or hide the "Clear filters" button depending on whether any assignee is active. */
+export function updateAssigneeFilterClearBtn() {
+    assigneeFilterClear.classList.toggle('hidden', state.activeAssignees.size === 0);
 }
-
-/** Re-render the Gantt chart applying the current label + title filters. */
 export function applyLabelFilter() {
     if (!state.ganttInstance) return;
     state.ganttInstance.refresh(getVisibleTasks());

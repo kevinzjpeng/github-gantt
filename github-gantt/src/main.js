@@ -17,7 +17,7 @@ import { state } from './state.js';
 import { getConfig, saveConfig, parseRepo, setStatus } from './config.js';
 import { normalizeDeps } from './utils.js';
 import { getLiveTasks, updateSaveBtn, recordChange, cascadeDateShift, getVisibleTasks } from './tasks.js';
-import { buildLabelFilter, updateFilterClearBtn, applyLabelFilter } from './filters.js';
+import { buildLabelFilter, updateFilterClearBtn, buildAssigneeFilter, updateAssigneeFilterClearBtn, applyLabelFilter } from './filters.js';
 import { renderGantt, applyBarColors } from './gantt-renderer.js';
 import { openSidebar, closeSidebar, _renderSidebar } from './sidebar.js';
 import { openBlockedByDialog, openParentDialog } from './dialogs.js';
@@ -48,6 +48,7 @@ const toolbarCollapsed   = document.getElementById('toolbar-collapsed');
 const toolbarShowBtn     = document.getElementById('toolbar-show-btn');
 const labelFilterPills   = document.getElementById('label-filter-pills');
 const labelFilterClear   = document.getElementById('label-filter-clear');
+const assigneeFilterClear = document.getElementById('assignee-filter-clear');
 const openOnlyFilter     = document.getElementById('open-only-filter');
 const titleFilterInput   = document.getElementById('title-filter');
 const sidebarClose       = document.getElementById('sidebar-close');
@@ -195,6 +196,14 @@ labelFilterClear.addEventListener('click', () => {
     applyLabelFilter();
 });
 
+assigneeFilterClear.addEventListener('click', () => {
+    state.activeAssignees.clear();
+    const assigneePills = document.getElementById('assignee-filter-pills');
+    assigneePills.querySelectorAll('.assignee-filter-pill').forEach((p) => p.classList.remove('active'));
+    updateAssigneeFilterClearBtn();
+    applyLabelFilter();
+});
+
 openOnlyFilter.addEventListener('change', () => {
     state.openOnly = openOnlyFilter.checked;
     state.ganttInstance?.refresh(getVisibleTasks());
@@ -236,6 +245,7 @@ async function loadIssues() {
         state.rowOrderOverride = [];
         updateSaveBtn();
         buildLabelFilter(state.allIssues);
+        buildAssigneeFilter(state.allIssues);
         
         // Set open-only filter to checked (default enabled)
         openOnlyFilter.checked = state.openOnly;

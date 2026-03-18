@@ -225,10 +225,15 @@ export function getVisibleTasks() {
     const needle = state.titleFilter.toLowerCase();
 
     const filtered = live.filter((task) => {
-        // Filter by status if any statuses are selected
-        if (state.activeStatuses.size > 0) {
+        // Filter by open-only if enabled
+        if (state.openOnly) {
             const issueStatus = task._issue?.state;
-            if (!issueStatus || !state.activeStatuses.has(issueStatus)) return false;
+            if (issueStatus !== 'open') return false;
+        }
+        // Filter by assignees if any assignees are selected
+        if (state.activeAssignees.size > 0) {
+            const assigneeLogins = new Set((task._issue?.assignees || []).map((a) => a.login));
+            if (![...state.activeAssignees].some((login) => assigneeLogins.has(login))) return false;
         }
         // Filter by labels if any labels are selected
         if (state.activeLabels.size > 0) {
