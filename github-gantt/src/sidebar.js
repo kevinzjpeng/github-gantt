@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { escHtml, escAttr, fmtDate, labelTextColor, normalizeDeps } from './utils.js';
 import { parseRepo, setStatus, getConfig } from './config.js';
 import { recordChange, cascadeDateShift, clampStartToDeps, refreshGanttDates, getLiveTasks, getVisibleTasks, updateSaveBtn } from './tasks.js';
+import { buildLabelFilter } from './filters.js';
 import { fetchIssueComments } from './github.js';
 
 const sidebar        = document.getElementById('sidebar');
@@ -534,6 +535,10 @@ function _applyLabelEdit(taskId, issue, mutateFn) {
     const updated = mutateFn(current);
     state.pendingLabelChanges.set(taskId, updated);
     updateSaveBtn();
+    
+    // Rebuild label filter to show current label state
+    buildLabelFilter(state.allIssues);
+    
     state.ganttInstance?.refresh(getVisibleTasks());
 
     // Re-render sidebar
