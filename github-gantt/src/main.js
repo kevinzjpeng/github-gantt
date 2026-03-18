@@ -269,6 +269,7 @@ async function loadIssues() {
             
             // Update header to show project name
             repoLabel.textContent = projectInfo.title;
+            state.projectTitle = projectInfo.title;
             
             // Determine which repo to use
             if (parsed.repo) {
@@ -310,6 +311,9 @@ async function loadIssues() {
             repo = parsed.repo;
             if (!repo) { setStatus('Repository is required', 'error'); return; }
             allIssues = await fetchAllIssues(owner, repo, token);
+            state.projectId = null;
+            state.projectTitle = null;
+            state.projectIssueNumbers.clear();
         }
 
         state.allIssues  = allIssues;
