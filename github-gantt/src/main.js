@@ -135,6 +135,7 @@ settingsForm.addEventListener('submit', async (e) => {
         // Update header with project title
         repoLabel.textContent = projectInfo.title;
         state.projectId = projectId;
+        state.projectTitle = projectInfo.title;
         closeSettingsModal();
         closeSidebar();
         await loadIssues();
@@ -174,6 +175,7 @@ configForm.addEventListener('submit', async (e) => {
         // Update header with project title
         repoLabel.textContent = projectInfo.title;
         state.projectId = projectId;
+        state.projectTitle = projectInfo.title;
         showMain();
         await loadIssues();
     } catch (err) {

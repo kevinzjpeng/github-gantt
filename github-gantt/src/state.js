@@ -19,6 +19,9 @@ export const state = {
     /** Project ID being viewed (if loading from project). */
     projectId: null,
 
+    /** Project title for display. */
+    projectTitle: null,
+
     /** All issue numbers that belong to the current project. Used for filtering. */
     projectIssueNumbers: new Set(),
 

@@ -262,6 +262,10 @@ function _renderSidebar(issue, task, deps, parentDeps, liveTasks, { onAddDepende
                 </div>
             </div>
         </div>
+        ${state.projectTitle ? `<div class="sidebar-section">
+            <h4>Project</h4>
+            <div class="project-info">${escHtml(state.projectTitle)}</div>
+        </div>` : ''}
         <div class="sidebar-section">
             <h4>Progress</h4>
             <div class="progress-row">
