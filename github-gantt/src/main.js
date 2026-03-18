@@ -17,7 +17,7 @@ import { state } from './state.js';
 import { getConfig, saveConfig, parseRepo, setStatus } from './config.js';
 import { normalizeDeps } from './utils.js';
 import { getLiveTasks, updateSaveBtn, recordChange, cascadeDateShift, getVisibleTasks } from './tasks.js';
-import { buildLabelFilter, updateFilterClearBtn, buildStatusFilter, updateStatusFilterClearBtn, applyLabelFilter } from './filters.js';
+import { buildLabelFilter, updateFilterClearBtn, applyLabelFilter } from './filters.js';
 import { renderGantt, applyBarColors } from './gantt-renderer.js';
 import { openSidebar, closeSidebar, _renderSidebar } from './sidebar.js';
 import { openBlockedByDialog, openParentDialog } from './dialogs.js';
@@ -48,7 +48,7 @@ const toolbarCollapsed   = document.getElementById('toolbar-collapsed');
 const toolbarShowBtn     = document.getElementById('toolbar-show-btn');
 const labelFilterPills   = document.getElementById('label-filter-pills');
 const labelFilterClear   = document.getElementById('label-filter-clear');
-const statusFilterClear  = document.getElementById('status-filter-clear');
+const openOnlyFilter     = document.getElementById('open-only-filter');
 const titleFilterInput   = document.getElementById('title-filter');
 const sidebarClose       = document.getElementById('sidebar-close');
 const viewBtns           = document.querySelectorAll('[data-view]');
@@ -195,12 +195,9 @@ labelFilterClear.addEventListener('click', () => {
     applyLabelFilter();
 });
 
-statusFilterClear.addEventListener('click', () => {
-    state.activeStatuses.clear();
-    const statusPills = document.getElementById('status-filter-pills');
-    statusPills.querySelectorAll('.status-filter-pill').forEach((p) => p.classList.remove('active'));
-    import('./filters.js').then(m => m.updateStatusFilterClearBtn());
-    applyLabelFilter();
+openOnlyFilter.addEventListener('change', () => {
+    state.openOnly = openOnlyFilter.checked;
+    state.ganttInstance?.refresh(getVisibleTasks());
 });
 
 titleFilterInput.addEventListener('input', () => {
@@ -239,7 +236,9 @@ async function loadIssues() {
         state.rowOrderOverride = [];
         updateSaveBtn();
         buildLabelFilter(state.allIssues);
-        buildStatusFilter(state.allIssues);
+        
+        // Set open-only filter to checked (default enabled)
+        openOnlyFilter.checked = state.openOnly;
 
         if (state.allTasks.length === 0) {
             document.getElementById('gantt-wrapper').innerHTML = '<div class="empty">No issues found in this repository.</div>';
